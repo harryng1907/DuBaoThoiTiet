@@ -10,8 +10,6 @@ top_cities = [
     "Da Lat", "Buon Ma Thuot", "Ho Chi Minh City", "Can Tho", "Ca Mau"
 ]
 
-cityes = ["Ha Noi"]
-
 manual = { "Vinh": {"lat": 18.67337, "lon": 105.69232, "name" : "Vinh"}}
 
 start_date = "2021-01-01"
