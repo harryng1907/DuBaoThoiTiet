@@ -1,107 +1,107 @@
 import pandas as pd
-import numpy as np
-from sklearn.ensemble import GradientBoostingRegressor
 import joblib
 
-# 1. Load Data
-# ---------------------------------------------------------
-print("⏳ Loading data & Training 4 models (Max, Min, Rain, Hum)...")
-df = pd.read_csv("vietnam_weather_final.csv")
+# 1. LOAD MODEL
+print("⚡ Loading model...")
+try:
+    model = joblib.load("weather_predictor.joblib")
+except FileNotFoundError:
+    print("❌ Error: 'weather_predictor.joblib' not found.")
+    exit()
+
+# 2. LOAD DATA
+print("📂 Loading data...")
+try:
+    # Try the updated file first, fallback to original
+    df = pd.read_csv("vietnam_weather_updated.csv")
+except:
+    df = pd.read_csv("vietnam_weather_final.csv")
+
+# === FIX 1: CALCULATE MONTH ===
 df['time'] = pd.to_datetime(df['time'])
-
-# Numeric fixes & Filling
-for col in ['rain_sum', 'wind_speed_10m_max']:
-    df[col] = pd.to_numeric(df[col], errors='coerce')
-df = df.ffill()
-
-# Create Month feature
 df['Month'] = df['time'].dt.month
 
-# 2. Prepare Features & Targets
-# ---------------------------------------------------------
-# We now use Max and Min instead of Mean
-feature_cols = ['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum', 'humidity_avg', 'Month']
+# === FIX 2: STANDARDIZE CITY NAMES (Removes Accents) ===
+# This aligns "Huế" -> "Hue", "Cà Mau" -> "Ca Mau" to match the trained model.
+city_map = {
+    'Huế': 'Hue', 
+    'Cà Mau': 'Ca Mau', 
+    'Đà Nẵng': 'Da Nang', 
+    'Đà Lạt': 'Da Lat',
+    'Hà Nội': 'Hanoi',
+    'TP. Hồ Chí Minh': 'Ho Chi Minh City',
+    'Hồ Chí Minh': 'Ho Chi Minh City'
+}
+df['city'] = df['city'].replace(city_map)
+print("✅ City names cleaned (Accents removed).")
 
-# Create 4 Targets (Next Day's Max, Min, Rain, Humidity)
-df['Target_Max']  = df.groupby('city')['temperature_2m_max'].shift(-1)
-df['Target_Min']  = df.groupby('city')['temperature_2m_min'].shift(-1)
-df['Target_Rain'] = df.groupby('city')['precipitation_sum'].shift(-1)
-df['Target_Hum']  = df.groupby('city')['humidity_avg'].shift(-1)
+# 3. DEFINE FEATURES & STRUCTURE
+features = [
+    'temperature_2m_mean', 'temperature_2m_max', 'temperature_2m_min',
+    'precipitation_sum', 'humidity_avg', 'pressure_avg', 'Month'
+]
 
-df = df.dropna()
+# --- SAFETY STEP: REBUILD COLUMN STRUCTURE ---
+# Now that city names are fixed, this will generate "city_Hue" (Correct) instead of "city_Huế" (Wrong)
+temp_df = df[features + ['city']].copy()
+temp_X = pd.get_dummies(temp_df, columns=['city'], drop_first=True)
+model_columns = temp_X.columns 
+print(f"✅ Model Structure Ready: Expecting {len(model_columns)} columns.")
 
-# One-Hot Encoding for City
-X = pd.get_dummies(df[feature_cols + ['city']], columns=['city'], drop_first=True)
-model_columns = X.columns 
-
-# 3. Train the "Four Horsemen" Models
-# ---------------------------------------------------------
-model_max = joblib.load('model_max_temp.joblib')
-model_min = joblib.load('model_min_temp.joblib')
-model_rain = joblib.load('model_rain.joblib')
-model_hum = joblib.load('model_hum.joblib')
-# 4. Prediction Function (Recursive)
-# ---------------------------------------------------------
-def predict_next_7_days(city_name, start_date_str):
+# 4. PREDICTION FUNCTION
+def predict_7_days_temp_only(city_name, start_date_str):
     start_date = pd.to_datetime(start_date_str)
     
-    # Check if city/date exists
+    # Clean the user input city too
+    city_name = city_map.get(city_name, city_name) 
+
+    # Get Data for Day 0
     row = df[(df['city'] == city_name) & (df['time'] == start_date)]
     
     if row.empty:
         print(f"❌ Error: No data found for {city_name} on {start_date_str}")
+        print(f"   (Available cities: {df['city'].unique()})")
         return
 
-    # Prepare first input
-    current_input = pd.get_dummies(row[feature_cols + ['city']], columns=['city'], drop_first=True)
-    current_input = current_input.reindex(columns=model_columns, fill_value=0)
+    # Prepare Input
+    current_input = row.copy()
     
-    print(f"\n🔮 7-Day Forecast for {city_name} starting {start_date_str}")
-    print("="*75)
-    # New header with High/Low
-    print(f"{'Date':<12} | {'High (°C)':<10} | {'Low (°C)':<10} | {'Rain (mm)':<10} | {'Hum (%)':<8} | {'Status'}")
-    print("-" * 75)
+    # One-Hot Encode
+    input_df = pd.get_dummies(current_input[features + ['city']], columns=['city'], drop_first=True)
+    
+    # ALIGN COLUMNS (The final lock)
+    input_df = input_df.reindex(columns=model_columns, fill_value=0)
+
+    print(f"\n🔮 7-Day Temperature Forecast for {city_name}")
+    print("="*40)
+    print(f"{'Date':<12} | {'Avg Temp (°C)':<15}")
+    print("-" * 40)
 
     current_date = start_date
     
     for i in range(1, 8):
-        # Predict all 4 variables
-        pred_max  = model_max.predict(current_input)[0]
-        pred_min  = model_min.predict(current_input)[0]
-        pred_rain = max(0, model_rain.predict(current_input)[0])
-        pred_hum  = min(100, max(0, model_hum.predict(current_input)[0]))
-
-        # Simple Logic check: Max must be >= Min
-        if pred_min > pred_max:
-            pred_max, pred_min = pred_min, pred_max
-
-        # Status logic
-        status = "Sunny ☀️"
-        if pred_rain > 5: status = "Rainy 🌧️"
-        elif pred_rain > 0.5: status = "Drizzle 🌦️"
-        elif pred_hum > 90: status = "Cloudy ☁️"
-
+        # Predict
+        pred_mean = model.predict(input_df)[0]
+        
         # Print
         next_date = current_date + pd.Timedelta(days=1)
-        print(f"{next_date.strftime('%Y-%m-%d'):<12} | {pred_max:^10.1f} | {pred_min:^10.1f} | {pred_rain:^10.1f} | {pred_hum:^8.1f} | {status}")
-
-        # Update input for the next loop (Recursive Step)
-        current_input['temperature_2m_max'] = pred_max
-        current_input['temperature_2m_min'] = pred_min
-        current_input['precipitation_sum'] = pred_rain
-        current_input['humidity_avg'] = pred_hum
-        current_input['Month'] = next_date.month
+        print(f"{next_date.strftime('%Y-%m-%d'):<12} | {pred_mean:^15.2f}")
+        
+        # Update Inputs
+        old_mean = input_df['temperature_2m_mean'].values[0]
+        diff = pred_mean - old_mean
+        
+        input_df['temperature_2m_mean'] = pred_mean
+        input_df['temperature_2m_max'] += diff
+        input_df['temperature_2m_min'] += diff
+        input_df['Month'] = next_date.month
         
         current_date = next_date
 
-# 5. User Input
-# ---------------------------------------------------------
+# 5. RUN
 try:
-    print("\n--- Enter Details to Predict ---")
-    user_city = input("City (e.g., Hanoi): ").strip()
-    user_date = input("Date (YYYY-MM-DD): ").strip()
-    
-    predict_next_7_days(user_city, user_date)
-
+    c = input("City (e.g., Hue, Hanoi): ")
+    d = input("Date (2009-2021): ") 
+    predict_7_days_temp_only(c, d)
 except Exception as e:
-    print("Something went wrong:", e)
+    print("Error:", e)
