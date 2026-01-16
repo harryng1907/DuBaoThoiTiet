@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -10,7 +11,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 # 1. Load & Prepare Data
 # ---------------------------------------------------------
 print("⏳ Loading data and training model...")
-df = pd.read_csv("vietnam_weather_final.csv")
+df = pd.read_csv("resource/vietnam_weather_final.csv")
 df['time'] = pd.to_datetime(df['time'])
 
 # Numeric conversion
@@ -33,7 +34,27 @@ y = df['Target_NextDay_Temp']
 
 # Train Model
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-model = joblib.load("weather_predictor.joblib")
+chosen = input("Chon mo hinh:")
+match chosen:
+    case "1":
+        model_name = "Decision_Tree"
+    case "2":
+        model_name = "Gradient_Boosting"
+    case "3":
+        model_name = "Linear_Regression"
+    case "4":
+        model_name = "Random_Forest"
+    case "5":
+        model_name = "Ridge_Regression"
+
+
+filename = f"models/model_{model_name}.joblib"
+try:
+    model = joblib.load(filename)
+except FileNotFoundError:
+    print(f"❌ Error: {filename} not found.")
+    exit()
+
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
