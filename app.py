@@ -3,6 +3,7 @@ import pandas as pd
 import joblib
 import datetime
 import os
+import random
 
 app = Flask(__name__)
 
@@ -128,8 +129,13 @@ def index():
     }
     forecast = None
     error = None
-    message = "Choose a model and enter parameters."
+    message = "Chọn Mô hình và số liệu."
 
+    #load hinh anh
+    bg_images = ['danang.jpg', 'hanoi.jpg', 'hue.jpg', 'saigon.jpg']
+    selected_bg = random.choice(bg_images) # Pick one randomly
+
+    
     if request.method == 'POST':
         action = request.form.get('action')
         
@@ -162,10 +168,10 @@ def index():
                 # Handle pressure if missing in CSV
                 p = row.iloc[0]['pressure_avg']
                 form_data['press'] = p if pd.notnull(p) else 1010.0
-                message = "✅ History Loaded!"
+                message = "Đã tải được thông tin trong ngày"
             else:
                 form_data.update({'mean': 25, 'max': 30, 'min': 20})
-                message = "⚠️ Date not found. Using defaults."
+                message = "Không tìm được thông tin trong ngày. Đã tải mặc định"
 
         # LOGIC: Predict
         elif action == 'predict':
@@ -175,11 +181,13 @@ def index():
                     form_data['city'], form_data['date']
                 )
                 if err: error = err
-                else: message = f"🚀 Prediction complete using {model_files[form_data['model']]}!"
+                else: message = f"Dự đoán thời tiết thành công bằng {model_files[form_data['model']]}!"
             except Exception as e:
                 error = f"Error: {str(e)}"
 
-    return render_template('index.html', form=form_data, forecast=forecast, message=message, error=error)
+    return render_template('index.html', form=form_data, forecast=forecast, 
+                       message=message, error=error, 
+                       bg_image=selected_bg) # ✅ Correct
 
 if __name__ == '__main__':
     app.run(debug=True)

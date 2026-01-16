@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Weather AI Lab</title>
+    <title>Dự Báo Nhiệt Độ tại Việt Nam</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        
+        body { font-family: 'Segoe UI', sans-serif; background-image: url("{{ url_for('static', filename=bg_image) }}"); background-size: cover; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);}
         h1 { text-align: center; color: #333; }
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
@@ -34,7 +35,7 @@
 <body>
 
 <div class="container">
-    <h1>🔬 Vietnam Weather Lab</h1>
+    <h1>Dự Báo Nhiệt Độ tại Việt Nam</h1>
 
     {% if error %}
         <div class="alert alert-error">{{ error }}</div>
@@ -43,21 +44,21 @@
     {% endif %}
 
     <form method="POST">
-        <h3 class="section-title">⚙️ Configuration</h3>
+        <h3 class="section-title">Chọn</h3>
         <div class="grid">
             <div>
-                <label>📍 City</label>
+                <label>Thành Phố</label>
                 <select name="city">
-                    <option value="Hanoi" {% if form.city == 'Hanoi' %}selected{% endif %}>Hanoi</option>
-                    <option value="Hue" {% if form.city == 'Hue' %}selected{% endif %}>Hue</option>
-                    <option value="Da Nang" {% if form.city == 'Da Nang' %}selected{% endif %}>Da Nang</option>
-                    <option value="Ho Chi Minh City" {% if form.city == 'Ho Chi Minh City' %}selected{% endif %}>Ho Chi Minh City</option>
+                    <option value="Hanoi" {% if form.city == 'Hanoi' %}selected{% endif %}>Hà Nội</option>
+                    <option value="Hue" {% if form.city == 'Hue' %}selected{% endif %}>Huế</option>
+                    <option value="Da Nang" {% if form.city == 'Da Nang' %}selected{% endif %}>Đà Nẵng</option>
+                    <option value="Ho Chi Minh City" {% if form.city == 'Ho Chi Minh City' %}selected{% endif %}>Hồ CHí Minh</option>
                     <option value="Can Tho" {% if form.city == 'Can Tho' %}selected{% endif %}>Can Tho</option>
                     <option value="Da Lat" {% if form.city == 'Da Lat' %}selected{% endif %}>Da Lat</option>
                 </select>
             </div>
             <div>
-                <label>🧠 AI Model</label>
+                <label>Mô Hình</label>
                 <select name="model">
                     <option value="1" {% if form.model == '1' %}selected{% endif %}>1. Decision Tree</option>
                     <option value="2" {% if form.model == '2' %}selected{% endif %}>2. Gradient Boosting (Best)</option>
@@ -72,30 +73,30 @@
             </div>
         </div>
 
-        <h3 class="section-title">🌡️ Weather Conditions (Starting Point)</h3>
+        <h3 class="section-title">Điều Kiện Thời Tiết Trong Ngày</h3>
         <div class="grid">
-            <div><label>Avg Temp (°C)</label><input type="number" step="0.1" name="mean" value="{{ form.mean }}"></div>
-            <div><label>Max Temp (°C)</label><input type="number" step="0.1" name="max" value="{{ form.max }}"></div>
-            <div><label>Min Temp (°C)</label><input type="number" step="0.1" name="min" value="{{ form.min }}"></div>
+            <div><label>Nhiệt Độ Trung Bình (°C)</label><input type="number" step="0.1" name="mean" value="{{ form.mean }}"></div>
+            <div><label>Nhiệt Độ Cao Nhất (°C)</label><input type="number" step="0.1" name="max" value="{{ form.max }}"></div>
+            <div><label>Nhiệt Độ Thấp Nhất (°C)</label><input type="number" step="0.1" name="min" value="{{ form.min }}"></div>
 
-            <div><label>🌧️ Rain (mm)</label><input type="number" step="0.1" name="rain" value="{{ form.rain }}"></div>
-            <div><label>💧 Humidity (%)</label><input type="number" step="0.1" name="hum" value="{{ form.hum }}"></div>
-            <div><label>🎈 Pressure (hPa)</label><input type="number" step="0.1" name="press" value="{{ form.press }}"></div>
+            <div><label>Lượng Mưa (mm)</label><input type="number" step="0.1" name="rain" value="{{ form.rain }}"></div>
+            <div><label>Độ Ẩm (%)</label><input type="number" step="0.1" name="hum" value="{{ form.hum }}"></div>
+            <div><label>Áp Suất (hPa)</label><input type="number" step="0.1" name="press" value="{{ form.press }}"></div>
         </div>
 
         <div class="btn-group">
-            <button type="submit" name="action" value="load" class="btn-load">🔄 Load Historical Data</button>
-            <button type="submit" name="action" value="predict" class="btn-predict">🔮 Run Prediction</button>
+            <button type="submit" name="action" value="load" class="btn-load">Kiếm Số liệu Điều Kiện Thời Tiết</button>
+            <button type="submit" name="action" value="predict" class="btn-predict">Dự Báo Thời Tiết</button>
         </div>
     </form>
 
     {% if forecast %}
-        <h3 class="section-title">📊 7-Day Forecast Results</h3>
+        <h3 class="section-title">📊 Dự Báo Trong 7 Ngày Tới</h3>
         <table>
             <thead>
                 <tr>
-                    <th>Date</th>
-                    <th>Predicted Mean Temp (°C)</th>
+                    <th>Ngày</th>
+                    <th>Nhiệt Độ Dự Báo (°C)</th>
                 </tr>
             </thead>
             <tbody>
