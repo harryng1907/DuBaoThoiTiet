@@ -4,7 +4,7 @@ Du Bao Thoi Tiet bang 1 trong 5 model:
 
 Do Chinh Xac (lay tu weather_model_train.py):
  Mô hình|      MAE  |     R2
- ---|---|---
+ -----|-----|-----
 Gradient Boosting |0.618082 |0.944465
 Linear Regression |0.621385 |0.942164
  Ridge Regression |0.621387 |0.942165
