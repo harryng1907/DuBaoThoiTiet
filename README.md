@@ -2,7 +2,7 @@
 Du Bao Thoi Tiet trong 7 ngay tiep theo theo Mo hinh, Thanh pho, ngay va cac dieu kien thoi tiet cua ngay duoc chon.
 
 Do Chinh Xac (lay tu weather_model_train.py):
-Mô hình | MAE °C | R2
+Mô hình | MAE (°C) | R2
 --- | --- | ---
 Gradient Boosting | 0.6181 | 94.45%
 Linear Regression | 0.6214 | 94.22%
