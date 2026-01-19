@@ -8,11 +8,12 @@ top_cities = [
     "Hanoi", "Hai Phong", "Vinh", "Hue", "Nha Trang",
     "Da Lat", "Buon Ma Thuot", "Ho Chi Minh City", "Can Tho", "Ca Mau"
 ]
+cities = ["Hanoi", "Ho Chi Minh City"]
 
 manual = { "Vinh": {"lat": 18.67337, "lon": 105.69232, "name" : "Vinh"}}
 
-start_date = "2021-01-01"
-end_date = "2026-01-14"
+start_date = "2026-01-15"
+end_date = "2026-01-15"
 
 weather_params = {
     "daily": "temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,rain_sum,wind_speed_10m_max",
@@ -97,7 +98,7 @@ if all_data:
     final_df = pd.concat(all_data, ignore_index=True)
     
     # Save to CSV
-    filename = "vietnam_weather_morerecent2.csv"
+    filename = "vietnam_weather_morerecent3.csv"
     final_df.to_csv(filename, index=False)
     print("------------------------------------------------")
     print(f"✅ Success! Saved {len(final_df)} rows to '{filename}'")

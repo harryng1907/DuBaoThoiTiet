@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Du Bao Thoi Tiet AI</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+
+    <style>
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background-image: url("{{ url_for('static', filename=bg_image) }}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            padding: 20px; 
+        }
+        .container { max-width: 900px; margin: auto; background: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        
+        h1 { 
+            text-align: center; color: #333; 
+            display: flex; align-items: center; justify-content: center; gap: 15px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .app-icon { width: 50px; height: 50px; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .full-width { grid-column: span 2; }
+        
+        label { font-weight: bold; color: #444; display: block; margin-bottom: 8px; font-size: 0.9em; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 1em; }
+        
+        .section-title { margin-top: 30px; padding-bottom: 10px; border-bottom: 2px solid #007bff; color: #007bff; font-weight: bold; }
+        
+        .btn-group { display: flex; gap: 15px; margin-top: 30px; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; font-size: 1.1em; }
+        .btn-live { background-color: #17a2b8; } /* Màu xanh dương nhạt */
+        .btn-predict { background-color: #28a745; } /* Màu xanh lá */
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+        /* Bảng kết quả */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; border-radius: 8px; overflow: hidden; }
+        th { background-color: #007bff; color: white; padding: 15px; text-transform: uppercase; font-size: 0.9em; }
+        td { padding: 15px; border-bottom: 1px solid #eee; text-align: center; font-size: 1.1em; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        
+        /* Màu sắc cho nhiệt độ */
+        .temp-max { color: #dc3545; font-weight: bold; } /* Đỏ */
+        .temp-min { color: #007bff; font-weight: bold; } /* Xanh */
+        
+        .alert { padding: 15px; margin-bottom: 20px; border-radius: 8px; text-align: center; font-weight: 500; }
+        .alert-info { background: #e2e6ea; color: #333; }
+        .alert-error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>
+        <img src="{{ url_for('static', filename='icon.png') }}" class="app-icon">
+        Du Bao Thoi Tiet AI
+    </h1>
+
+    {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+    {% else %}
+        <div class="alert alert-info">{{ message }}</div>
+    {% endif %}
+
+    <form method="POST">
+        <h3 class="section-title">Cau Hinh</h3>
+        <div class="grid">
+            <div>
+                <label>Chon Thanh Pho</label>
+                <select name="city">
+                    <option value="Hanoi" {% if form.city == 'Hanoi' %}selected{% endif %}>Ha Noi</option>
+                    <option value="Hue" {% if form.city == 'Hue' %}selected{% endif %}>Hue</option>
+                    <option value="Da Nang" {% if form.city == 'Da Nang' %}selected{% endif %}>Da Nang</option>
+                    <option value="Ho Chi Minh City" {% if form.city == 'Ho Chi Minh City' %}selected{% endif %}>TP. Ho Chi Minh</option>
+                    <option value="Can Tho" {% if form.city == 'Can Tho' %}selected{% endif %}>Can Tho</option>
+                    <option value="Da Lat" {% if form.city == 'Da Lat' %}selected{% endif %}>Da Lat</option>
+                    <option value="Vinh" {% if form.city == 'Vinh' %}selected{% endif %}>Vinh</option>
+                </select>
+            </div>
+            <div>
+                <label>Ngay Bat Dau</label>
+                <input type="date" name="date" value="{{ form.date }}" max="{{ max_date }}">
+            </div>
+        </div>
+
+        <h3 class="section-title">Thoi Tiet Hien Tai (Tu Ve Tinh)</h3>
+        <div class="grid">
+            <div><label>Nhiet Do TB (°C)</label><input type="number" step="0.1" name="mean" value="{{ form.mean }}" placeholder="..."></div>
+            <div><label>Nhiet Do Cao Nhat (°C)</label><input type="number" step="0.1" name="max" value="{{ form.max }}" placeholder="..."></div>
+            <div><label>Nhiet Do Thap Nhat (°C)</label><input type="number" step="0.1" name="min" value="{{ form.min }}" placeholder="..."></div>
+
+            <div><label>Luong Mua (mm)</label><input type="number" step="0.1" name="rain" value="{{ form.rain }}" placeholder="..."></div>
+            <div><label>Do Am (%)</label><input type="number" step="0.1" name="hum" value="{{ form.hum }}" placeholder="..."></div>
+            <div><label>Ap Suat (hPa)</label><input type="number" step="0.1" name="press" value="{{ form.press }}" placeholder="..."></div>
+        </div>
+
+        <div class="btn-group">
+            <button type="submit" name="action" value="live" class="btn-live">
+                📡 Lay Du Lieu That (Live API)
+            </button>
+            <button type="submit" name="action" value="predict" class="btn-predict">
+                🔮 Du Bao 7 Ngay Toi
+            </button>
+        </div>
+    </form>
+
+    {% if forecast %}
+        <h3 class="section-title">📊 Ket Qua Du Bao</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ngay</th>
+                    <th>Cao Nhat</th>
+                    <th>Thap Nhat</th>
+                    <th>Trung Binh</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for day in forecast %}
+                <tr>
+                    <td>{{ day.date }}</td>
+                    <td class="temp-max">{{ day.max }}°C</td>
+                    <td class="temp-min">{{ day.min }}°C</td>
+                    <td>{{ day.mean }}°C</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+</body>
+</html>

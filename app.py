@@ -4,190 +4,159 @@ import joblib
 import datetime
 import os
 import random
+import requests
 
 app = Flask(__name__)
 
-# --- 1. SETUP: LOAD DATA & DEFINE COLUMNS ---
-print("⚡ Loading Data & Configuring Columns...")
+# --- 1. CẤU HÌNH: TẢI MÔ HÌNH ---
+print("⚡ Dang khoi dong he thong...")
+
 try:
-    # Load Data (using your specific path)
-    df = pd.read_csv("resource/vietnam_weather_final.csv")
-    df['time'] = pd.to_datetime(df['time'])
-    df['Month'] = df['time'].dt.month
-
-    # Standardize Cities
-    city_map = {
-        'Huế': 'Hue', 'Cà Mau': 'Ca Mau', 'Đà Nẵng': 'Da Nang', 
-        'Đà Lạt': 'Da Lat', 'Hà Nội': 'Hanoi', 
-        'TP. Hồ Chí Minh': 'Ho Chi Minh City', 'Hồ Chí Minh': 'Ho Chi Minh City'
-    }
-    df['city'] = df['city'].replace(city_map)
-
-    # Define Features (Exact same as your script)
-    features = [
-        'temperature_2m_mean', 'temperature_2m_max', 'temperature_2m_min',
-        'precipitation_sum', 'humidity_avg', 'pressure_avg', 'Month'
-    ]
-
-    # LEARN COLUMN STRUCTURE (Crucial Step)
-    # We simulate the training step to get the exact list of 16 columns (including cities)
-    temp_df = df[features + ['city']].copy()
-    temp_X = pd.get_dummies(temp_df, columns=['city'], drop_first=True)
-    model_columns = temp_X.columns 
-    print(f"✅ Data Ready. Model expects {len(model_columns)} columns.")
-
+    model_columns = joblib.load("models/model_columns.joblib")
+    # Tải 2 mô hình chuyên gia Max/Min (Global variables)
+    model_max = joblib.load("models/model_max.joblib")
+    model_min = joblib.load("models/model_min.joblib")
+    print("✅ Da tai mo hinh Max & Min thanh cong.")
 except Exception as e:
-    print(f"❌ Critical Error loading data: {e}")
+    print(f"❌ Loi: Khong tim thay file mo hinh ({e}). Hay chay script training truoc!")
     exit()
 
-# --- 2. SETUP: LOAD ALL MODELS ---
-print("⚡ Loading Models...")
-models_dict = {}
-model_files = {
-    "1": "Decision_Tree",
-    "2": "Gradient_Boosting",
-    "3": "Linear_Regression",
-    "4": "Random_Forest",
-    "5": "Ridge_Regression"
+# Tọa độ các thành phố
+city_coords = {
+    'Hanoi': {'lat': 21.0285, 'lon': 105.8542},
+    'Hue': {'lat': 16.4637, 'lon': 107.5909},
+    'Da Nang': {'lat': 16.0544, 'lon': 108.2022},
+    'Ho Chi Minh City': {'lat': 10.8231, 'lon': 106.6297},
+    'Can Tho': {'lat': 10.0452, 'lon': 105.7469},
+    'Da Lat': {'lat': 11.9404, 'lon': 108.4583},
+    'Vinh': {'lat': 18.6733, 'lon': 105.6869}
 }
 
-for key, name in model_files.items():
-    path = f"models/model_{name}.joblib"
-    if os.path.exists(path):
-        models_dict[key] = joblib.load(path)
-        print(f"   -> Loaded {name}")
-    else:
-        print(f"   ⚠️ Warning: {name} not found in 'models/' folder.")
+# --- 2. HÀM LẤY DỮ LIỆU THẬT (LIVE API) ---
+def get_live_weather(city_name):
+    coords = city_coords.get(city_name)
+    if not coords:
+        return None, "Khong tim thay toa do thanh pho nay."
 
-# --- 3. PREDICTION ENGINE ---
-def calculate_forecast(model_key, start_data, city, start_date):
-    # 1. Select the correct model
-    if model_key not in models_dict:
-        return None, "Model file not found. Did you train it?"
-    
-    model = models_dict[model_key]
+    try:
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={coords['lat']}&longitude={coords['lon']}&current=temperature_2m,relative_humidity_2m,rain,surface_pressure,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto"
+        
+        response = requests.get(url)
+        data = response.json()
+        
+        current = data['current']
+        daily = data['daily']
+        
+        return {
+            'mean': current['temperature_2m'],
+            'max': daily['temperature_2m_max'][0], 
+            'min': daily['temperature_2m_min'][0],
+            'rain': current['rain'],
+            'hum': current['relative_humidity_2m'],
+            'press': current['surface_pressure']
+        }, None
+    except Exception as e:
+        return None, f"Loi ket noi API: {str(e)}"
 
+# --- 3. BỘ MÁY DỰ BÁO ---
+# (Đã sửa: Bỏ tham số model_key thừa vì chúng ta dùng model_max/min toàn cục)
+def calculate_forecast(start_data, city, start_date):
     results = []
     
-    # 2. Prepare Initial Input
-    # Note: We use the user's manual inputs for Rain/Hum/Pressure
     current_input = {
         'temperature_2m_mean': float(start_data['mean']),
         'temperature_2m_max': float(start_data['max']),
         'temperature_2m_min': float(start_data['min']),
-        'precipitation_sum': float(start_data['rain']), # User Input
-        'humidity_avg': float(start_data['hum']),       # User Input
-        'pressure_avg': float(start_data['press']),     # User Input
+        'precipitation_sum': float(start_data['rain']),
+        'humidity_avg': float(start_data['hum']),
+        'pressure_avg': float(start_data['press']),
         'Month': pd.to_datetime(start_date).month,
-        'city': city
     }
     
-    # Create DataFrame & Align Columns
+    for col in model_columns:
+        if 'city_' in col:
+            current_input[col] = 1 if col == f"city_{city}" else 0
+
     input_df = pd.DataFrame([current_input])
-    input_df = pd.get_dummies(input_df, columns=['city'], drop_first=True)
     input_df = input_df.reindex(columns=model_columns, fill_value=0)
     
     current_date_obj = pd.to_datetime(start_date)
 
-    # 3. Prediction Loop (Your Exact Logic)
     for i in range(1, 8):
-        # Predict Mean Temp
-        pred_mean = model.predict(input_df)[0]
+        pred_max = model_max.predict(input_df)[0]
+        pred_min = model_min.predict(input_df)[0]
+        pred_mean = (pred_max + pred_min) / 2
         
-        # Calculate Date
         next_date = current_date_obj + datetime.timedelta(days=1)
-        
-        # Store Result
         results.append({
-            "date": next_date.strftime('%Y-%m-%d'),
-            "temp": round(pred_mean, 2)
+            "date": next_date.strftime('%d-%m-%Y'),
+            "max": round(pred_max, 1),
+            "min": round(pred_min, 1),
+            "mean": round(pred_mean, 1)
         })
         
-        # Update Inputs (Recursive Logic)
-        old_mean = input_df['temperature_2m_mean'].values[0]
-        diff = pred_mean - old_mean
-        
         input_df['temperature_2m_mean'] = pred_mean
-        input_df['temperature_2m_max'] += diff
-        input_df['temperature_2m_min'] += diff
+        input_df['temperature_2m_max'] = pred_max
+        input_df['temperature_2m_min'] = pred_min
         input_df['Month'] = next_date.month
-        
-        # Note: Rain/Hum/Pressure stay constant based on user input (as per your script logic)
         
         current_date_obj = next_date
         
     return results, None
 
-# --- 4. WEB ROUTES ---
+# --- 4. HÀM PHỤ TRỢ (HELPER) ---
+# QUAN TRỌNG: Không đặt @app.route ở đây!
+def run_dashboard_logic(city):
+    # 1. Get Live Data
+    today_str = datetime.date.today().strftime('%Y-%m-%d')
+    live_data, err = get_live_weather(city)
+    
+    if err: return None, None, err
+    
+    # 2. Predict Forecast
+    start_data = {
+        'mean': live_data['mean'],
+        'max': live_data['max'],
+        'min': live_data['min'],
+        'rain': live_data['rain'],
+        'hum': live_data['hum'],
+        'press': live_data['press']
+    }
+    
+    # SỬA LỖI: Chỉ truyền 3 tham số (bỏ model_key)
+    forecast, err = calculate_forecast(start_data, city, today_str)
+    return live_data, forecast, err
+
+# --- 5. GIAO DIỆN WEB (MAIN ROUTE) ---
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # Defaults
-    form_data = {
-        'city': 'Hanoi', 'date': '2021-01-01', 'model': '2',
-        'mean': '', 'max': '', 'min': '', 
-        'rain': '0.0', 'hum': '80.0', 'press': '1010.0'
-    }
-    forecast = None
-    error = None
-    message = "Chọn Mô hình và số liệu."
-
-    #load hinh anh
-    bg_images = ['danang.jpg', 'hanoi.jpg', 'hue.jpg', 'saigon.jpg']
-    selected_bg = random.choice(bg_images) # Pick one randomly
-
+    # Mặc định
+    city = 'Ho Chi Minh City'
     
+    # Nếu người dùng chọn thành phố khác
     if request.method == 'POST':
-        action = request.form.get('action')
-        
-        # Capture all inputs
-        form_data.update({
-            'city': request.form.get('city'),
-            'date': request.form.get('date'),
-            'model': request.form.get('model'),
-            'mean': request.form.get('mean'),
-            'max': request.form.get('max'),
-            'min': request.form.get('min'),
-            'rain': request.form.get('rain'),
-            'hum': request.form.get('hum'),
-            'press': request.form.get('press')
-        })
+        city = request.form.get('city')
+    
+    # Random Ad Image
+    ad_images = ['monkey.gif','vietnam.png','mu.png','target.png'] # Đảm bảo file tồn tại trong static/
+    random_ad = random.choice(ad_images)
 
-        # LOGIC: Load History
-        if action == 'load':
-            target_date = pd.to_datetime(form_data['date'])
-            city_clean = city_map.get(form_data['city'], form_data['city'])
-            
-            row = df[(df['city'] == city_clean) & (df['time'] == target_date)]
-            
-            if not row.empty:
-                form_data['mean'] = row.iloc[0]['temperature_2m_mean']
-                form_data['max'] = row.iloc[0]['temperature_2m_max']
-                form_data['min'] = row.iloc[0]['temperature_2m_min']
-                form_data['rain'] = row.iloc[0]['precipitation_sum']
-                form_data['hum'] = row.iloc[0]['humidity_avg']
-                # Handle pressure if missing in CSV
-                p = row.iloc[0]['pressure_avg']
-                form_data['press'] = p if pd.notnull(p) else 1010.0
-                message = "Đã tải được thông tin trong ngày"
-            else:
-                form_data.update({'mean': 25, 'max': 30, 'min': 20})
-                message = "Không tìm được thông tin trong ngày. Đã tải mặc định"
+    # AUTO-RUN: Chạy logic
+    current_weather, forecast, error = run_dashboard_logic(city)
+    
+    # Tạo tên file ảnh thành phố
+    city_img_name = city.lower().replace(" ", "") + ".jpg"
+    print(city_img_name)
 
-        # LOGIC: Predict
-        elif action == 'predict':
-            try:
-                forecast, err = calculate_forecast(
-                    form_data['model'], form_data, 
-                    form_data['city'], form_data['date']
-                )
-                if err: error = err
-                else: message = f"Dự đoán thời tiết thành công bằng {model_files[form_data['model']]}!"
-            except Exception as e:
-                error = f"Error: {str(e)}"
-
-    return render_template('index.html', form=form_data, forecast=forecast, 
-                       message=message, error=error, 
-                       bg_image=selected_bg) # ✅ Correct
+    nice_date = datetime.date.today().strftime('%d/%m/%Y')
+    return render_template('index2.html', 
+                           city=city, 
+                           weather=current_weather, 
+                           forecast=forecast, 
+                           error=error,
+                           city_image=city_img_name,
+                           ad_image=random_ad,
+                           date_display=nice_date)
 
 if __name__ == '__main__':
     app.run(debug=True)

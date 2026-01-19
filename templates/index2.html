@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dự Báo Thời Tiết</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon.png') }}">
+    
+    <style>
+        /* 1. THEME & RESET */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* 2. LAYOUT GRID */
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            gap: 20px;
+            grid-template-rows: auto auto auto; 
+        }
+
+        /* 3. HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .city-selector {
+            background: transparent;
+            color: white;
+            border: none;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            padding: 5px;
+        }
+        .city-selector option { background: #0f172a; color: white; }
+
+        /* 4. TOP ROW */
+        .top-row {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 0.8fr;
+            gap: 20px;
+        }
+
+        /* Card Style */
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .current-weather-card { padding: 30px; position: relative; }
+        .temp-big { font-size: 4.5rem; font-weight: bold; line-height: 1; }
+        .condition-text { font-size: 1.2rem; color: #94a3b8; margin-bottom: 20px; }
+        
+        .weather-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-item { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; }
+        .stat-label { font-size: 0.8rem; color: #94a3b8; display: block; }
+        .stat-value { font-size: 1.1rem; font-weight: bold; }
+
+        .city-image-card { padding: 0; overflow: hidden; position: relative; }
+        .city-img { width: 100%; height: 100%; object-fit: cover; }
+        .city-badge {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .ad-card { padding: 0; overflow: hidden; }
+        .ad-img { width: 100%; height: 100%; object-fit: cover; }
+
+        /* 5. BOTTOM ROW */
+        .forecast-section-title { margin-top: 20px; font-size: 1.2rem; font-weight: bold; }
+        .forecast-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .forecast-card {
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 16px;
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .forecast-card:hover { transform: translateY(-5px); background: rgba(59, 130, 246, 0.2); }
+        .f-date { font-size: 0.9rem; color: #cbd5e1; margin-bottom: 10px; display: block;}
+        .f-temp-max { font-size: 1.2rem; font-weight: bold; display: block; }
+        .f-temp-min { font-size: 0.9rem; color: #94a3b8; }
+
+        @media (max-width: 900px) {
+            .top-row { grid-template-columns: 1fr; }
+            .forecast-row { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+
+    <div class="header">
+        <form method="POST" id="cityForm">
+            <select name="city" class="city-selector" onchange="document.getElementById('cityForm').submit()">
+                <option value="Ho Chi Minh City" {% if city == 'Ho Chi Minh City' %}selected{% endif %}>Hồ Chí Minh</option>
+                <option value="Hanoi" {% if city == 'Hanoi' %}selected{% endif %}>Hà Nội</option>
+                <option value="Da Nang" {% if city == 'Da Nang' %}selected{% endif %}>Đà Nẵng</option>
+                <option value="Hue" {% if city == 'Hue' %}selected{% endif %}>Huế</option>
+                <option value="Can Tho" {% if city == 'Can Tho' %}selected{% endif %}>Cần Thơ</option>
+                <option value="Da Lat" {% if city == 'Da Lat' %}selected{% endif %}>Đà Lạt</option>
+                <option value="Vinh" {% if city == 'Vinh' %}selected{% endif %}>Vinh</option>
+            </select>
+        </form>
+        <div style="font-size: 0.9rem; opacity: 0.8;">📱📱📱📱📱📱📱📱</div>
+    </div>
+
+    {% if error %}
+    <div style="background: #ef4444; padding: 10px; border-radius: 8px; margin-bottom: 20px;">
+        ⚠️ {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="top-row">
+        
+        <div class="card current-weather-card">
+            <div>
+                <div style="font-size: 1rem; color: #94a3b8;">
+                    Hôm Nay ({{ date_display }})
+                </div>
+                <div style="font-size: 0.9rem; opacity: 0.6;">{{ weather.press }} hPa</div>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <div class="temp-big">{{ weather.mean }}°C</div>
+                <div class="condition-text">
+                    {% if weather.rain > 5 %} 🌧️ Mưa Lớn
+                    {% elif weather.rain > 0 %} 🌦️ Mưa Nhẹ
+                    {% elif weather.mean > 30 %} ☀️ Không Mưa
+                    {% else %} ☁️ Có Mây {% endif %}
+                </div>
+            </div>
+
+            <div class="weather-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Độ Ẩm</span>
+                    <span class="stat-value">{{ weather.hum }}%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Gió</span>
+                    <span class="stat-value">~ 10 km/h</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Lượng Mưa</span>
+                    <span class="stat-value">{{ weather.rain }} mm</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Cảm Giác Giống</span>
+                    <span class="stat-value">{{ weather.mean + 2 }}°</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card city-image-card">
+            <img src="{{ url_for('static', filename=city_image) }}" class="city-img">
+            <div class="city-badge">📍 {{ city }}</div>
+        </div>
+
+        <div class="card ad-card">
+            <img src="{{ url_for('static', filename=ad_image) }}" class="ad-img">
+            <div style="position: absolute; bottom: 10px; right: 10px; background: white; color: black; padding: 2px 5px; font-size: 10px; border-radius: 3px;">Quảng Cáo</div>
+        </div>
+    </div>
+
+    <div class="forecast-section-title">Dự Báo 7 Ngày Tới</div>
+    <div class="forecast-row">
+        {% if forecast %}
+            {% for day in forecast %}
+            <div class="forecast-card">
+                <span class="f-date">{{ day.date }}</span>
+                
+                <div class="f-icon" style="font-size: 2rem;">
+                    {% if day.mean > 30 %}☀️{% elif day.mean < 20 %}❄️{% else %}⛅{% endif %}
+                </div>
+                
+                <span class="f-temp-max">{{ day.max }}°</span>
+                <span class="f-temp-min">{{ day.min }}°</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="color: #94a3b8;">Đang Tải Dự Báo...</div>
+        {% endif %}
+    </div>
+
+</div>
+
+</body>
+</html>
