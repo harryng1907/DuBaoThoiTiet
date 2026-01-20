@@ -64,8 +64,10 @@
         }
 
         .current-weather-card { padding: 30px; position: relative; }
-        .temp-big { font-size: 4.5rem; font-weight: bold; line-height: 1; }
-        .condition-text { font-size: 1.2rem; color: #94a3b8; margin-bottom: 20px; }
+        
+        /* --- ADDED THIS CSS FOR BIG TEMP --- */
+        .temp-big { font-size: 4.5rem; font-weight: bold; line-height: 1.1; margin: 10px 0; }
+        .condition-text { font-size: 1.2rem; color: #94a3b8; margin-bottom: 10px; }
         
         .weather-grid {
             display: grid;
@@ -134,7 +136,7 @@
                 <option value="Vinh" {% if city == 'Vinh' %}selected{% endif %}>Vinh</option>
             </select>
         </form>
-        <div style="font-size: 0.9rem; opacity: 0.8;">📱📱📱📱📱📱📱📱</div>
+        <div style="font-size: 0.9rem; opacity: 0.8;">📱 DASHBOARD</div>
     </div>
 
     {% if error %}
@@ -152,17 +154,14 @@
                 </div>
                 <div style="font-size: 0.9rem; opacity: 0.6;">{{ weather.press }} hPa</div>
             </div>
-            
-            <div style="margin: 20px 0;">
-                <div class="temp-big">{{ weather.mean }}°C</div>
-                <div class="condition-text">
-                    {% if weather.rain > 5 %} 🌧️ Mưa Lớn
-                    {% elif weather.rain > 0 %} 🌦️ Mưa Nhẹ
-                    {% elif weather.mean > 30 %} ☀️ Không Mưa
-                    {% else %} ☁️ Có Mây {% endif %}
-                </div>
-            </div>
 
+            <div class="temp-big">{{ weather.mean }}°C</div>
+            <div class="condition-text">
+                {% if weather.mean > 30 %} Nắng Nóng ☀️
+                {% elif weather.mean < 20 %} Se Lạnh ❄️
+                {% else %} Có Mây ☁️
+                {% endif %}
+            </div>
             <div class="weather-grid">
                 <div class="stat-item">
                     <span class="stat-label">Độ Ẩm</span>
@@ -177,7 +176,7 @@
                     <span class="stat-value">{{ weather.rain }} mm</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label">Cảm Giác Giống</span>
+                    <span class="stat-label">Cảm Giác</span>
                     <span class="stat-value">{{ weather.mean + 2 }}°</span>
                 </div>
             </div>
@@ -201,7 +200,7 @@
             <div class="forecast-card">
                 <span class="f-date">{{ day.date }}</span>
                 
-                <div class="f-icon" style="font-size: 2rem;">
+                <div class="f-icon" style="font-size: 2rem; margin: 10px 0;">
                     {% if day.mean > 30 %}☀️{% elif day.mean < 20 %}❄️{% else %}⛅{% endif %}
                 </div>
                 

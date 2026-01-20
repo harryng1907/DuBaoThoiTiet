@@ -26,7 +26,7 @@ df = df.dropna()
 # Select Features
 df['Month'] = df['time'].dt.month
 feature_cols = [
-    'temperature_2m_mean', 'temperature_2m_max', 'temperature_2m_min',
+    'temperature_2m_max', 'temperature_2m_min',
     'precipitation_sum', 'humidity_avg', 'pressure_avg', 'Month'
 ]
 X = pd.get_dummies(df[feature_cols + ['city']], columns=['city'], drop_first=True)
@@ -48,7 +48,7 @@ match chosen:
         model_name = "Ridge_Regression"
 
 
-filename = f"models/model_{model_name}.joblib"
+filename = f"models/model_{model_name}2.joblib"
 try:
     model = joblib.load(filename)
 except FileNotFoundError:
@@ -73,7 +73,6 @@ plt.title('Top 10 Factors Affecting Weather Prediction')
 plt.xlabel('Importance Score')
 plt.tight_layout()
 plt.show()
-
 # ---------------------------------------------------------
 # CHART 2: Correlation Heatmap (Relationships)
 # ---------------------------------------------------------
